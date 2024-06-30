@@ -1,8 +1,12 @@
-import requests, binascii, json, base64, time, hashlib, jwt, hmac
+import requests, binascii, json, base64, time, hashlib, jwt, hmac, argparse
 from urllib.parse import parse_qs, urlparse
 from CustomSRP import CustomSRP
 
-user_id = ""
+parser = argparse.ArgumentParser(description="argparser")
+parser.add_argument('--user')
+args = parser.parse_args()
+
+user_id = args.user
 
 s = requests.Session()
 
@@ -111,7 +115,7 @@ eafe_hash = r["nextAuthenticator"]["eafeHash"]
 auth_session_id_spec = r["nextAuthenticator"]["authenticatorSessionId"]
 """
 
-
+print("Login request has been made, open your MitID app now")
 while True:
     r = s.post(poll_url, json={"ticket": ticket})
 
