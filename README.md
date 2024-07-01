@@ -1,6 +1,8 @@
 # MitID-BrowserClient
 Unofficial python implementation of the MitID javascript browser client
 
+The code is really really garbage currently, and is very much in a POC state
+
 Currently supports logins using the MitID app (if you use 4-digit OTP rather than QR code), and the code token reader device.
 
 It's also hardcoded to use mitid.dk's login page for now
