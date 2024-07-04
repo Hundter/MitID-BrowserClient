@@ -27,6 +27,17 @@ def hex_to_bytes(x):
 def hex_to_int(x):
     return int(x, 16)
 
+def AesDecryptWithKey(encMessage, key):
+    encMessage = base64.b64decode(encMessage)
+
+    iv = encMessage[:BLOCK_SIZE]
+    cipherText = encMessage[BLOCK_SIZE:len(encMessage)-BLOCK_SIZE]
+    macTag = encMessage[len(encMessage)-BLOCK_SIZE:]
+
+    cipher = AES.new(key, AES.MODE_GCM, iv)
+    decrypted = cipher.decrypt_and_verify(cipherText, macTag)
+    return decrypted
+
 class CustomSRP():
     def SRPStage1(self):
         self.N = 4983313092069490398852700692508795473567251422586244806694940877242664573189903192937797446992068818099986958054998012331720869136296780936009508700487789962429161515853541556719593346959929531150706457338429058926505817847524855862259333438239756474464759974189984231409170758360686392625635632084395639143229889862041528635906990913087245817959460948345336333086784608823084788906689865566621015175424691535711520273786261989851360868669067101108956159530739641990220546209432953829448997561743719584980402874346226230488627145977608389858706391858138200618631385210304429902847702141587470513336905449351327122086464725143970313054358650488241167131544692349123381333204515637608656643608393788598011108539679620836313915590459891513992208387515629240292926570894321165482608544030173975452781623791805196546326996790536207359143527182077625412731080411108775183565594553871817639221414953634530830290393130518228654795859
@@ -133,31 +144,15 @@ class CustomSRP():
         M2_hex_verify = m.hexdigest()
         return M2_hex_verify == M2_hex
 
-    def AuthEnc(self, response_signature):
-        response_signature = base64.b64decode(pad(response_signature))
+    def AuthEnc(self, plainText):
         iv = Random.new().read(BLOCK_SIZE)
         cipher = AES.new(self.K_bits, AES.MODE_GCM, iv)
-        ciphertext, tag = cipher.encrypt_and_digest(response_signature)
-        return base64.b64encode(iv + ciphertext + tag).decode("ascii")
-    
-    def EncWithKBits(self, value_to_enc):
-        iv = Random.new().read(BLOCK_SIZE)
-        cipher = AES.new(self.K_bits, AES.MODE_GCM, iv)
-        ciphertext, tag = cipher.encrypt_and_digest(value_to_enc)
+        ciphertext, tag = cipher.encrypt_and_digest(plainText)
         return (iv + ciphertext + tag)
-    
+
     def AuthDec(self, encMessage):
-        encMessage = base64.b64decode(encMessage)
-        cipher = AES.new(self.K_bits, AES.MODE_GCM, encMessage[:BLOCK_SIZE])
-        decrypted = cipher.decrypt(encMessage[BLOCK_SIZE:len(encMessage)-BLOCK_SIZE])
-        return decrypted
+        return AesDecryptWithKey(encMessage, self.K_bits)
     
     def AuthDecPin(self, encMessage):
-        m = hashlib.sha256()
-        m.update((binascii.hexlify(self.K_bits).decode('utf-8') + "PIN").encode('utf-8'))
-        pin_key = m.digest()
-
-        encMessage = base64.b64decode(encMessage)
-        cipher = AES.new(pin_key, AES.MODE_GCM, encMessage[:BLOCK_SIZE])
-        decrypted = cipher.decrypt(encMessage[BLOCK_SIZE:len(encMessage)-BLOCK_SIZE])
-        return decrypted
+        pin_key = hashlib.sha256(binascii.hexlify(self.K_bits) + b"PIN").digest()
+        return AesDecryptWithKey(encMessage, pin_key)
