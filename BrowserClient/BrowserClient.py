@@ -1,5 +1,5 @@
 import requests, time, hashlib, base64, hmac
-from CustomSRP import CustomSRP, hex_to_bytes, bytes_to_hex, pad
+from BrowserClient.CustomSRP import CustomSRP, hex_to_bytes, bytes_to_hex, pad
 
 def convert_human_authenticator_name_to_combination_id(authenticator_name):
     match authenticator_name:

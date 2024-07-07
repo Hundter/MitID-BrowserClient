@@ -1,6 +1,6 @@
 import requests, binascii, json, base64, jwt, argparse
 from urllib.parse import parse_qs, urlparse
-from BrowserClient import BrowserClient
+from BrowserClient.BrowserClient import BrowserClient
 
 parser = argparse.ArgumentParser(description="argparser")
 parser.add_argument('--user', help='Your MitID username. For example: "GenericDanishCitizen"', required=True)
