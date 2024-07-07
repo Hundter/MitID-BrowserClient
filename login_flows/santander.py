@@ -1,10 +1,6 @@
 # Script for https://netbank.santanderconsumer.dk/dk/login
-import requests, binascii, json, base64, jwt, argparse, sys
-from urllib.parse import parse_qs, urlparse
+import requests, binascii, json, base64, argparse, sys, string, secrets, hashlib
 from bs4 import BeautifulSoup
-import string
-import secrets
-import hashlib
 sys.path.append("..")
 from BrowserClient.BrowserClient import BrowserClient
 
