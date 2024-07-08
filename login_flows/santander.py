@@ -115,3 +115,9 @@ headers = {
 
 user_info = session.get('https://apim.scb.nu/netbank/customer/v1/', headers=headers)
 print(user_info.json())
+products = session.get('https://apim.scb.nu/netbank/customer-product/v1/', headers=headers)
+print(products.json())
+for deposit in products.json()['depositCustomerProducts']:
+    account_id = deposit['accountId']
+    account_info = session.get('https://apim.scb.nu/netbank/deposit/v1/'+account_id, headers=headers)
+    print(account_info.json())
