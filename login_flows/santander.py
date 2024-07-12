@@ -1,5 +1,6 @@
 # Script for https://netbank.santanderconsumer.dk/dk/login
 import requests, binascii, json, base64, argparse, sys, string, secrets, hashlib
+from Crypto import Random
 from bs4 import BeautifulSoup
 sys.path.append("..")
 from BrowserClient.BrowserClient import BrowserClient
@@ -12,22 +13,25 @@ args = parser.parse_args()
 
 user_id = args.user
 
+def generateRandomString():
+    return binascii.hexlify(Random.new().read(28)).decode("utf-8")
+
+def generateChallenge(verifier):
+    return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("utf-8")).digest()).decode("utf-8").rstrip("=")
+
 session = requests.Session()
 
 if args.proxy:
     session.proxies.update({"http": f"socks5://{args.proxy}", "https": f"socks5://{args.proxy}" })
     
 # First part of Santander procedure
-alphabet = string.ascii_letters + string.digits + '-._~'
-code_verifier = ''.join(secrets.choice(alphabet) for i in range(43))
-code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
-code_challenge = base64.urlsafe_b64encode(code_challenge).decode('utf-8')
-code_challenge = code_challenge.replace('=', '')
-state = secrets.token_hex(28)
+nem_login_state = generateRandomString()
+nem_login_code_verifier = generateRandomString()
+nem_login_code_challenge = generateChallenge(nem_login_code_verifier)
 digits = string.digits
 form_digits = ''.join(secrets.choice(digits) for i in range(29))
 
-request = session.get(f"https://oauth.scb.nu/oauth/v2/authorize?response_type=code&client_id=SCBDK.Netbank.Client&redirect_uri=https://netbank.santanderconsumer.dk/dk/auth/callback&code_challenge_method=S256&scope=netbank.customer.read netbank.customer.write netbank.customer-product.read netbank.customer-product.write netbank.deposit.read netbank.deposit.write netbank.loan.read netbank.loan.write netbank.credit.read netbank.credit.write netbank.leasing.read netbank.leasing.write netbank.transfer-account.read netbank.transfer-account.write netbank.customer-compliance.read netbank.customer-compliance.write netbank.message.read netbank.message.write netbank.chat.read netbank.chat.write banking.mysantander openid profile&code_challenge={code_challenge}&state={state}")
+request = session.get(f"https://oauth.scb.nu/oauth/v2/authorize?response_type=code&client_id=SCBDK.Netbank.Client&redirect_uri=https://netbank.santanderconsumer.dk/dk/auth/callback&code_challenge_method=S256&scope=netbank.customer.read netbank.customer.write netbank.customer-product.read netbank.customer-product.write netbank.deposit.read netbank.deposit.write netbank.loan.read netbank.loan.write netbank.credit.read netbank.credit.write netbank.leasing.read netbank.leasing.write netbank.transfer-account.read netbank.transfer-account.write netbank.customer-compliance.read netbank.customer-compliance.write netbank.message.read netbank.message.write netbank.chat.read netbank.chat.write banking.mysantander openid profile&code_challenge={nem_login_code_challenge}&state={nem_login_state}")
 if request.status_code != 200:
     print(f"Failed session setup attempt, status code {request.status_code}")
     raise Exception(request.content)
@@ -95,8 +99,7 @@ for input in inputs:
 payload = f"token={json_payload['token']}&state={json_payload['state']}"
 request = session.post('https://oauth.scb.nu' + soup.form['action'], data=payload, headers=headers)
 code = request.url[request.url.index('code=')+5:request.url.index('&',request.url.index('code='))]
-
-payload = f"client_id=SCBDK.Netbank.Client&redirect_uri=https%3A%2F%2Fnetbank.santanderconsumer.dk%2Fdk%2Fauth%2Fcallback&grant_type=authorization_code&code={code}&code_verifier={code_verifier}"
+payload = f"client_id=SCBDK.Netbank.Client&redirect_uri=https%3A%2F%2Fnetbank.santanderconsumer.dk%2Fdk%2Fauth%2Fcallback&grant_type=authorization_code&code={code}&code_verifier={nem_login_code_verifier}"
 
 headers = {'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'}
 request = session.post('https://oauth.scb.nu/oauth/v2/token', data=payload, headers=headers)
