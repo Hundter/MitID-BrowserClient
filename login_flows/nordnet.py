@@ -1,4 +1,4 @@
-# Script for https://netbank.santanderconsumer.dk/dk/login
+# Script for https://www.nordnet.dk/logind
 import requests, binascii, json, base64, argparse, sys, string, secrets, uuid
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
