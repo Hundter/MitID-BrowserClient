@@ -1,4 +1,4 @@
-import requests, time, hashlib, base64, hmac
+import requests, time, hashlib, base64, hmac, binascii
 from BrowserClient.CustomSRP import CustomSRP, hex_to_bytes, bytes_to_hex, pad
 
 def convert_human_authenticator_name_to_combination_id(authenticator_name):
@@ -18,6 +18,42 @@ def convert_combination_id_to_human_authenticator_name(combination_id):
             return "TOKEN"
         case _:
             raise Exception(f"No such combination ID ({combination_id})")
+
+def process_args(args):
+    method = args.method
+    user_id = args.user
+    if args.password and args.method == 'TOKEN':
+        password = args.password
+    elif args.method == 'TOKEN':
+        password = input("Please input your password\n")
+    else:
+        password = None
+    return method, user_id, password
+
+def get_authentication_code(session, aux, method, user_id, password):
+    client_hash = binascii.hexlify(base64.b64decode(aux["coreClient"]["checksum"])).decode('ascii')
+    authentication_session_id = aux["parameters"]["authenticationSessionId"]
+
+    MitIDClient = BrowserClient(client_hash, authentication_session_id, session)
+    available_authenticators = MitIDClient.identify_as_user_and_get_available_authenticators(user_id)
+
+    print(f"Available authenticator: {available_authenticators}")
+
+    if method == "TOKEN" and "TOKEN" in available_authenticators:
+        token_digits = input("Please input the 6 digits from your code token\n").strip()
+        MitIDClient.authenticate_with_token(token_digits)
+        MitIDClient.authenticate_with_password(password)
+    elif method == "APP" and "APP" in available_authenticators:
+        MitIDClient.authenticate_with_app()
+    elif method == "TOKEN" and "TOKEN" not in available_authenticators:
+        raise Exception(f"Token authentication method chosen but not available for MitID user")
+    elif method == "APP" and "APP" not in available_authenticators:    
+        raise Exception(f"App authentication method chosen but not available for MitID user")
+    else:
+        raise Exception(f"Unknown authenticator method {method}")
+
+    authorization_code = MitIDClient.finalize_authentication_and_get_authorization_code()
+    return authorization_code
 
 class BrowserClient():
     def __init__(self, client_hash: str, authentication_session_id: str, requests_session = requests.Session()):
@@ -40,7 +76,7 @@ class BrowserClient():
         print(f"Beginning login session for {self.service_provider_name}:")
         print(f"{self.reference_text_header}")
         print(f"{self.reference_text_body}")
-
+    
     def identify_as_user_and_get_available_authenticators(self, user_id):
         self.user_id = user_id
         r = self.session.put(f"https://www.mitid.dk/mitid-core-client-backend/v1/authentication-sessions/{self.authentication_session_id}", json={"identityClaim": user_id})
