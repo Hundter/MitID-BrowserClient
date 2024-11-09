@@ -97,7 +97,7 @@ class BrowserClient():
         r = self.session.post(f"https://www.mitid.dk/mitid-core-client-backend/v2/authentication-sessions/{self.authentication_session_id}/next", json={"combinationId": combination_id})
         
         if r.status_code != 200:
-            print(f"Received status code ({r.status_code}) while attempting to get authenticators for user ({user_id})")
+            print(f"Received status code ({r.status_code}) while attempting to get authenticators for user ({self.user_id})")
             raise Exception(r.content)
 
         r = r.json()
