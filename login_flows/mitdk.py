@@ -1,8 +1,7 @@
-# Script for https://private.e-boks.com/danmark/da/
-import json, base64, re, hashlib, requests, argparse, sys
+# Script for https://mit.dk
+import requests, json, base64, argparse, sys, string, secrets, hashlib
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
-from Crypto import Random
 sys.path.append("..")
 from BrowserClient.BrowserClient import BrowserClient, get_authentication_code, process_args
 
@@ -13,54 +12,52 @@ parser.add_argument('--proxy', help='An optional socks5 proxy to use for all com
 parser.add_argument('--method', choices=['APP', 'TOKEN'], help='Which method to use when logging in to MitID, default APP', default='APP', required=False)
 args = parser.parse_args()
 
-aux_in_js_regex = re.compile(r"\$\(function\(\)\{initiateMitId\((\{.*\})\)\}\);")
-
-def generateRandomString():
-    return binascii.hexlify(Random.new().read(28)).decode("utf-8")
-
-def generateChallenge(verifier):
-    return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("utf-8")).digest()).decode("utf-8").rstrip("=")
+def random_string(size):        
+    letters = string.ascii_lowercase+string.ascii_uppercase+string.digits+string.punctuation+string.whitespace           
+    random_string = ''.join(secrets.choice(letters) for i in range(size))
+    encoded_string = random_string.encode(encoding="ascii")
+    url_safe_string = base64.urlsafe_b64encode(encoded_string).decode()
+    url_safe_string_no_padding = url_safe_string.replace('=','')
+    return url_safe_string_no_padding
 
 method, user_id, password = process_args(args)
 session = requests.Session()
 if args.proxy:
     session.proxies.update({"http": f"socks5://{args.proxy}", "https": f"socks5://{args.proxy}" })
 
-# First part of eboks procedure
-nem_login_state = generateRandomString()
-nem_login_nonce = generateRandomString()
-nem_login_code_verifier = generateRandomString()
-nem_login_code_challenge = generateChallenge(nem_login_code_verifier)
-
-params = {
-    "response_type": "code",
-    "client_id": "e-boks-web",
-    "redirect_uri": "https://digitalpost.e-boks.dk",
-    "scope": "openid",
-    "state": nem_login_state,
-    "nonce": nem_login_nonce,
-    "code_challenge": nem_login_code_challenge,
-    "code_challenge_method": "S256",
-    "idp": "nemloginEboksRealm"
-}
-
+# First part of mit.dk procedure
+state = random_string(23)
+nonce = random_string(93)
+code_verifier = random_string(93)
+code_challenge = base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode('ascii')).digest()).decode().replace('=','')
+redirect_url = 'https://post.mit.dk/main'
+ 
 # Possibly you are going to need a QueueIT cookie.
-# Log on to e-boks in your browser with developer tools enabled to get this cookie
+# Log on to mit.dk in your browser with developer tools enabled to get this cookie
 # and uncomment the next line
-#session.cookies.update({"QueueITAccepted-SDFrts345E-V3_prod01": "ENTER VALUE FROM BROWSER HERE"})
+session.cookies.update({"QueueITAccepted-SDFrts345E-V3_prod01": "ENTER VALUE FROM BROWSER HERE"}) 
 
-request = session.get("https://gateway.digitalpost.dk/auth/oauth/authorize", params=params)
-soup = BeautifulSoup(request.text, features="html.parser")
+request = session.get(f"https://gateway.mit.dk/view/client/authorization/login?client_id=view-client-id-mobile-prod-1-id&response_type=code&scope=openid&state={state}&code_challenge={code_challenge}&code_challenge_method=S256&response_mode=query&nonce={nonce}&redirect_uri={redirect_url}&deviceName=digitalpost-utilities&deviceId=pc&lang=en_US")
+
+if request.status_code != 200:
+    print(f"Failed session setup attempt, status code {request.status_code}")
+    raise Exception(request.content)
+elif request.url != "https://nemlog-in.mitid.dk/login/mitid":
+    print(f"Unexpected URL, maybe something from QueueIT {request.url}")
+    raise Exception(request.content)
+    
+soup = BeautifulSoup(request.text, 'lxml')
 request_verification_token = soup.find('input', {'name': '__RequestVerificationToken'}).get('value')
-
-initialise_mitid_parameters = json.loads(aux_in_js_regex.findall(request.text)[0])
+search_string = '"Aux":"'
+start_aux = request.text.index(search_string)+len(search_string)
+end_aux = request.text.index('"', start_aux)
 
 # MitID procedure
-aux = json.loads(base64.b64decode(initialise_mitid_parameters["Aux"]))
+aux = json.loads(base64.b64decode(request.text[start_aux:end_aux]))
 authorization_code = get_authentication_code(session, aux, method, user_id, password)
 print(f"Your MitID authorization code was ({authorization_code})")
 
-# Second part of eboks procedure
+# Second part of mit.dk procedure
 params = {
     "__RequestVerificationToken": request_verification_token,
     "MitIDAuthCode": authorization_code
@@ -104,30 +101,17 @@ params = {
     "SAMLResponse": saml_response
 }
 
-request = session.post("https://gateway.digitalpost.dk/auth/s9/e-boks-nemlogin/ssoack", data=params)
+request = session.post("https://gateway.digitalpost.dk/auth/s9/mit-dk-nemlogin/ssoack", data=params)
+
 parsed_url = urlparse(request.url)
 code = parse_qs(parsed_url.query)['code'][0]
 
-params = {
-    "code": code,
-    "code_verifier": nem_login_code_verifier,
-    "grant_type": "authorization_code",
-    "nonce": nem_login_nonce,
-    "redirect_uri": "https://digitalpost.e-boks.dk"
-}
+request = session.post(f"https://gateway.mit.dk/view/client/authorization/token?grant_type=authorization_code&redirect_uri={redirect_url}&client_id=view-client-id-mobile-prod-1-id&code={code}&code_verifier={code_verifier}")
 
-request = session.post("https://digitalpostproxy.e-boks.dk/loginservice/v2/connect/token", json=params)
+tokens = json.loads(request.text)
+session.headers['mitdkToken'] = tokens['access_token']
+session.headers['ngdpToken'] = tokens['ngdp']['access_token']
+session.headers['platform'] = 'web'
 
-request = session.post("https://digitalpostproxy.e-boks.dk/loginservice/v2/connect/usertoken", json={"cpr": None})
-user_token = request.json()["userToken"]
-
-request = session.post("https://www.e-boks.dk/privat/api_eb/logon/authenticateusertoken", data={"userToken": user_token})
-
-request = session.post("https://www.e-boks.dk/privat/api_eb/logon/antiforgery")
-anti_forgery_token = request.json()["Data"]
-
-session.headers.update({ "Antiforgery": anti_forgery_token })
-
-request = session.get("https://www.e-boks.dk/privat/api_eb/users/userInfo")
-
-print(request.content)
+request = session.get("https://gateway.mit.dk/view/client/users")
+print(request.json())

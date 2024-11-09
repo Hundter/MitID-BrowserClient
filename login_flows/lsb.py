@@ -1,19 +1,18 @@
 # Script for https://www.lsb.dk/login
-import requests, binascii, json, base64, argparse, sys, json, re
+import requests, json, base64, argparse, sys, json, re
 from bs4 import BeautifulSoup
 sys.path.append("..")
-from BrowserClient.BrowserClient import BrowserClient
+from BrowserClient.BrowserClient import BrowserClient, get_authentication_code, process_args
 
 parser = argparse.ArgumentParser(description="argparser")
 parser.add_argument('--user', help='Your MitID username. For example: "GenericDanishCitizen"', required=True)
+parser.add_argument('--password', help='Your MitID password. For example: "CorrectHorseBatteryStaple"', required=False)
 parser.add_argument('--proxy', help='An optional socks5 proxy to use for all communication with MitID', required=False)
 parser.add_argument('--method', choices=['APP', 'TOKEN'], help='Which method to use when logging in to MitID, default APP', default='APP', required=False)
 args = parser.parse_args()
 
-user_id = args.user
-
+method, user_id, password = process_args(args)
 session = requests.Session()
-
 if args.proxy:
     session.proxies.update({"http": f"socks5://{args.proxy}", "https": f"socks5://{args.proxy}" })
     
@@ -45,28 +44,7 @@ request = session.post(authentication_url, json=login_info, headers=headers)
 
 # MitID procedure
 aux = json.loads(base64.b64decode(request.json()["aux"]))
-
-client_hash = binascii.hexlify(base64.b64decode(aux["coreClient"]["checksum"])).decode('ascii')
-authentication_session_id = aux["parameters"]["authenticationSessionId"]
-
-MitIDClient = BrowserClient(client_hash, authentication_session_id, session)
-available_authenticators = MitIDClient.identify_as_user_and_get_available_authenticators(user_id)
-
-print(f"Available authenticator: {available_authenticators}")
-
-if args.method == "TOKEN":
-    token_digits = input("Please input the 6 digits from your code token\n").strip()
-    MitIDClient.authenticate_with_token(token_digits)
-
-    password = input("Please input your password\n").strip()
-    MitIDClient.authenticate_with_password(password)
-elif args.method == "APP":
-    MitIDClient.authenticate_with_app()
-else:
-    raise Exception(f"Unknown authenticator method {args.method}")
-
-authorization_code = MitIDClient.finalize_authentication_and_get_authorization_code()
-
+authorization_code = get_authentication_code(session, aux, method, user_id, password)
 print(f"Your MitID authorization code was ({authorization_code})")
 
 # Second part of LSB procedure
