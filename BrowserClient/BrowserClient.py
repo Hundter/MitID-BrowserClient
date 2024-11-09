@@ -1,59 +1,5 @@
-import requests, time, hashlib, base64, hmac, binascii
+import requests, time, hashlib, base64, hmac
 from BrowserClient.CustomSRP import CustomSRP, hex_to_bytes, bytes_to_hex, pad
-
-def convert_human_authenticator_name_to_combination_id(authenticator_name):
-    match authenticator_name:
-        case "APP":
-            return "S3"
-        case "TOKEN":
-            return "S1"
-        case _:
-            raise Exception(f"No such authenticator name ({authenticator_name})")
-        
-def convert_combination_id_to_human_authenticator_name(combination_id):
-    match combination_id:
-        case "S3":
-            return "APP"
-        case "S1":
-            return "TOKEN"
-        case _:
-            raise Exception(f"No such combination ID ({combination_id})")
-
-def process_args(args):
-    method = args.method
-    user_id = args.user
-    if args.password and args.method == 'TOKEN':
-        password = args.password
-    elif args.method == 'TOKEN':
-        password = input("Please input your password\n")
-    else:
-        password = None
-    return method, user_id, password
-
-def get_authentication_code(session, aux, method, user_id, password):
-    client_hash = binascii.hexlify(base64.b64decode(aux["coreClient"]["checksum"])).decode('ascii')
-    authentication_session_id = aux["parameters"]["authenticationSessionId"]
-
-    MitIDClient = BrowserClient(client_hash, authentication_session_id, session)
-    available_authenticators = MitIDClient.identify_as_user_and_get_available_authenticators(user_id)
-
-    print(f"Available authenticator: {available_authenticators}")
-
-    if method == "TOKEN" and "TOKEN" in available_authenticators:
-        token_digits = input("Please input the 6 digits from your code token\n").strip()
-        MitIDClient.authenticate_with_token(token_digits)
-        MitIDClient.authenticate_with_password(password)
-    elif method == "APP" and "APP" in available_authenticators:
-        MitIDClient.authenticate_with_app()
-    elif method == "TOKEN" and "TOKEN" not in available_authenticators:
-        raise Exception(f"Token authentication method chosen but not available for MitID user")
-    elif method == "APP" and "APP" not in available_authenticators:    
-        raise Exception(f"App authentication method chosen but not available for MitID user")
-    else:
-        raise Exception(f"Unknown authenticator method {method}")
-
-    authorization_code = MitIDClient.finalize_authentication_and_get_authorization_code()
-    return authorization_code
 
 class BrowserClient():
     def __init__(self, client_hash: str, authentication_session_id: str, requests_session = requests.Session()):
@@ -76,6 +22,24 @@ class BrowserClient():
         print(f"Beginning login session for {self.service_provider_name}:")
         print(f"{self.reference_text_header}")
         print(f"{self.reference_text_body}")
+
+    def __convert_human_authenticator_name_to_combination_id(self, authenticator_name):
+        match authenticator_name:
+            case "APP":
+                return "S3"
+            case "TOKEN":
+                return "S1"
+            case _:
+                raise Exception(f"No such authenticator name ({authenticator_name})")
+    
+    def __convert_combination_id_to_human_authenticator_name(self, combination_id):
+        match combination_id:
+            case "S3":
+                return "APP"
+            case "S1":
+                return "TOKEN"
+            case _:
+                raise Exception(f"No such combination ID ({combination_id})")
     
     def identify_as_user_and_get_available_authenticators(self, user_id):
         self.user_id = user_id
@@ -113,7 +77,7 @@ class BrowserClient():
         available_combinations = r["combinations"]
         available_authenticators = {}
         for available_combination in available_combinations:
-            available_authenticators[convert_combination_id_to_human_authenticator_name(available_combination["id"])] = available_combination["combinationItems"][0]["name"]
+            available_authenticators[self.__convert_combination_id_to_human_authenticator_name(available_combination["id"])] = available_combination["combinationItems"][0]["name"]
 
         return available_authenticators
     
@@ -128,7 +92,7 @@ class BrowserClient():
         if authenticator_type == self.current_authenticator_type:
             return
         
-        combination_id = convert_human_authenticator_name_to_combination_id(authenticator_type)
+        combination_id = self.__convert_human_authenticator_name_to_combination_id(authenticator_type)
 
         r = self.session.post(f"https://www.mitid.dk/mitid-core-client-backend/v2/authentication-sessions/{self.authentication_session_id}/next", json={"combinationId": combination_id})
         

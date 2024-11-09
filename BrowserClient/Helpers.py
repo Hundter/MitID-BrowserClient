@@ -1,0 +1,66 @@
+import binascii, base64, hashlib, argparse
+from Crypto import Random
+from BrowserClient.BrowserClient import BrowserClient
+
+# Use this function to add the minimum required args to your login flow
+def get_default_args() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="argparser")
+    parser.add_argument('--user', help='Your MitID username. For example: "GenericDanishCitizen"', required=True)
+    parser.add_argument('--password', help='Your MitID password for use with the "TOKEN" login method. For example: "CorrectHorseBatteryStaple"', required=False)
+    parser.add_argument('--method', choices=['APP', 'TOKEN'], help='Which method to use when logging in to MitID, default APP', default='APP', required=False)
+    parser.add_argument('--proxy', help='An optional socks5 proxy to use for all communication with MitID', required=False)
+    return parser
+
+# Use this function to process the minimum required args for your login flow
+def process_args(args):
+    method = args.method
+    user_id = args.user
+    if args.password and args.method == 'TOKEN':
+        password = args.password
+    elif args.method == 'TOKEN':
+        password = input("Please input your password\n")
+    else:
+        password = None
+    return method, user_id, password, args.proxy
+
+# get_authentication_code is generally generic enough that you do not need to create your own
+# calls to BrowserClient
+def get_authentication_code(session, aux, method, user_id, password):
+    client_hash = binascii.hexlify(base64.b64decode(aux["coreClient"]["checksum"])).decode('ascii')
+    authentication_session_id = aux["parameters"]["authenticationSessionId"]
+
+    MitIDClient = BrowserClient(client_hash, authentication_session_id, session)
+    available_authenticators = MitIDClient.identify_as_user_and_get_available_authenticators(user_id)
+
+    print(f"Available authenticator: {available_authenticators}")
+
+    if method == "TOKEN" and "TOKEN" in available_authenticators:
+        token_digits = input("Please input the 6 digits from your code token\n").strip()
+        MitIDClient.authenticate_with_token(token_digits)
+        MitIDClient.authenticate_with_password(password)
+    elif method == "APP" and "APP" in available_authenticators:
+        MitIDClient.authenticate_with_app()
+    elif method == "TOKEN" and "TOKEN" not in available_authenticators:
+        raise Exception(f"Token authentication method chosen but not available for MitID user")
+    elif method == "APP" and "APP" not in available_authenticators:    
+        raise Exception(f"App authentication method chosen but not available for MitID user")
+    else:
+        raise Exception(f"Unknown authenticator method {method}")
+
+    authorization_code = MitIDClient.finalize_authentication_and_get_authorization_code()
+    return authorization_code
+
+def __generate_random_string():
+    return binascii.hexlify(Random.new().read(28)).decode("utf-8")
+
+def __generate_challenge(verifier):
+    return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("utf-8")).digest()).decode("utf-8").rstrip("=")
+
+# Use this function to generate the default parameters for nem_login flows
+def generate_nem_login_parameters():
+    nem_login_state = __generate_random_string()
+    nem_login_nonce = __generate_random_string()
+    nem_login_code_verifier = __generate_random_string()
+    nem_login_code_challenge = __generate_challenge(nem_login_code_verifier)
+
+    return nem_login_state, nem_login_nonce, nem_login_code_verifier, nem_login_code_challenge

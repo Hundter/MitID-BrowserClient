@@ -1,36 +1,22 @@
 # Script for https://private.e-boks.com/danmark/da/
-import json, base64, re, hashlib, requests, argparse, sys
+import json, base64, re, requests, sys
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
-from Crypto import Random
 sys.path.append("..")
-from BrowserClient.BrowserClient import BrowserClient, get_authentication_code, process_args
-
-parser = argparse.ArgumentParser(description="argparser")
-parser.add_argument('--user', help='Your MitID username. For example: "GenericDanishCitizen"', required=True)
-parser.add_argument('--password', help='Your MitID password. For example: "CorrectHorseBatteryStaple"', required=False)
-parser.add_argument('--proxy', help='An optional socks5 proxy to use for all communication with MitID', required=False)
-parser.add_argument('--method', choices=['APP', 'TOKEN'], help='Which method to use when logging in to MitID, default APP', default='APP', required=False)
-args = parser.parse_args()
+from BrowserClient.Helpers import get_authentication_code, process_args, generate_nem_login_parameters, get_default_args
 
 aux_in_js_regex = re.compile(r"\$\(function\(\)\{initiateMitId\((\{.*\})\)\}\);")
 
-def generateRandomString():
-    return binascii.hexlify(Random.new().read(28)).decode("utf-8")
+argparser = get_default_args()
+args = argparser.parse_args()
 
-def generateChallenge(verifier):
-    return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("utf-8")).digest()).decode("utf-8").rstrip("=")
-
-method, user_id, password = process_args(args)
+method, user_id, password, proxy = process_args(args)
 session = requests.Session()
-if args.proxy:
-    session.proxies.update({"http": f"socks5://{args.proxy}", "https": f"socks5://{args.proxy}" })
+if proxy:
+    session.proxies.update({"http": f"socks5://{proxy}", "https": f"socks5://{proxy}" })
 
 # First part of eboks procedure
-nem_login_state = generateRandomString()
-nem_login_nonce = generateRandomString()
-nem_login_code_verifier = generateRandomString()
-nem_login_code_challenge = generateChallenge(nem_login_code_verifier)
+nem_login_state, nem_login_nonce, nem_login_code_verifier, nem_login_code_challenge = generate_nem_login_parameters()
 
 params = {
     "response_type": "code",

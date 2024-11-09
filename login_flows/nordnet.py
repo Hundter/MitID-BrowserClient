@@ -1,21 +1,17 @@
 # Script for https://www.nordnet.dk/logind
-import requests, json, base64, argparse, sys, string, secrets, uuid
+import requests, json, base64, sys, string, secrets, uuid
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 sys.path.append("..")
-from BrowserClient.BrowserClient import BrowserClient, get_authentication_code, process_args
+from BrowserClient.Helpers import get_authentication_code, process_args, get_default_args
 
-parser = argparse.ArgumentParser(description="argparser")
-parser.add_argument('--user', help='Your MitID username. For example: "GenericDanishCitizen"', required=True)
-parser.add_argument('--password', help='Your MitID password. For example: "CorrectHorseBatteryStaple"', required=False)
-parser.add_argument('--proxy', help='An optional socks5 proxy to use for all communication with MitID', required=False)
-parser.add_argument('--method', choices=['APP', 'TOKEN'], help='Which method to use when logging in to MitID, default APP', default='APP', required=False)
-args = parser.parse_args()
+argparser = get_default_args()
+args = argparser.parse_args()
 
-method, user_id, password = process_args(args)
+method, user_id, password, proxy = process_args(args)
 session = requests.Session()
-if args.proxy:
-    session.proxies.update({"http": f"socks5://{args.proxy}", "https": f"socks5://{args.proxy}" })
+if proxy:
+    session.proxies.update({"http": f"socks5://{proxy}", "https": f"socks5://{proxy}" })
     
 # First part of Nordnet procedure
 nem_login_state = uuid.uuid4()
