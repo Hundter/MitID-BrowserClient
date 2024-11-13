@@ -1,6 +1,6 @@
 # Script for https://private.e-boks.com/danmark/da/
-import json, base64, re, requests, sys
-from urllib.parse import urlparse, parse_qs
+import json, base64, re, requests, sys, random
+from urllib.parse import urlparse, parse_qs, unquote
 from bs4 import BeautifulSoup
 sys.path.append("..")
 from BrowserClient.Helpers import get_authentication_code, process_args, generate_nem_login_parameters, get_default_args
@@ -10,7 +10,7 @@ aux_in_js_regex = re.compile(r"\$\(function\(\)\{initiateMitId\((\{.*\})\)\}\);"
 argparser = get_default_args()
 args = argparser.parse_args()
 
-method, user_id, password, proxy = process_args(args)
+method, user_id, password, proxy, queueit = process_args(args)
 session = requests.Session()
 if proxy:
     session.proxies.update({"http": f"socks5://{proxy}", "https": f"socks5://{proxy}" })
@@ -36,9 +36,91 @@ params = {
 #session.cookies.update({"QueueITAccepted-SDFrts345E-V3_prod01": "ENTER VALUE FROM BROWSER HERE"})
 
 request = session.get("https://gateway.digitalpost.dk/auth/oauth/authorize", params=params)
+
+if request.status_code != 200:
+    print(f"Failed session setup attempt, status code {request.status_code}")
+    raise Exception(request.content)
+elif '.queue-it.net/softblock' in request.url and queueit:
+    print('Queue-it CAPTCHA challenge detected. Trying to pass...')
+    search_string = "decodeURIComponent('"
+    start_of_target_url = request.text.index(search_string)+len(search_string)
+    end_of_target_url = request.text.index("'", start_of_target_url)
+    target_url = unquote(request.text[start_of_target_url:end_of_target_url])
+    
+    passed_captcha = False
+    try_count = 0
+    while passed_captcha == False and try_count < 5:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:130.0) Gecko/20100101 Firefox/130.0',
+            'Referer': request.url,
+            'X-Queueit-Challange-reason': '0',
+            'X-Queueit-Challange-CustomerId': 'digitalpost',
+            'X-Queueit-Challange-EventId': 'prod01',
+            'X-Queueit-Challange-Hash': 'iSoytOXf18UKTxmuzeklxZXwh6nGBz61kVP7dhijAE8=',
+            'Origin': 'https://digitalpost.queue-it.net',
+        }
+        queue_request = session.post("https://digitalpost.queue-it.net/challengeapi/queueitcaptcha/challenge/da-dk", headers=headers)
+        queue_request_json = queue_request.json()
+        image = queue_request.json()["imageBase64"]
+        
+        if queueit == 'API':
+            # Try API
+            # https://github.com/ganhj99/queueit-captcha-handler/tree/master
+            capt_json = {"image_data": image}
+            capt_request = session.post("https://ocr.ganhj.dev/queueit", json=capt_json)
+            solution = capt_request.json()['answer']
+        elif queueit == 'OCR':
+            # Try OCR
+            print("Decoding CAPTCHA using OCR. This may be slow.")
+            from paddleocr import PaddleOCR
+            ocr = PaddleOCR(lang='en', show_log=False)
+            result = ocr.ocr(base64.b64decode(image), det=False, cls=False)
+            solution = result[0][0][0].replace(" ","")
+
+        json_queue = {
+            "challengeType": "botdetect",
+            "sessionId": queue_request_json['sessionId'],
+            "challengeDetails": queue_request_json['challengeDetails'],
+            "solution": capt_request.json()['answer'],
+            "stats": {
+                "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0",
+                "screen": "1024 x 768",
+                "browser": "Firefox",
+                "browserVersion": "130.0",
+                "isMobile": False,
+                "os": "Windows",
+                "osVersion": "10",
+                "cookiesEnabled": True,
+                "tries": 1,
+                "duration": random.randint(9000, 15000)
+            },
+            "customerId": "digitalpost",
+            "eventId": "prod01",
+            "version": 6
+        }    
+        verify_request = session.post("https://digitalpost.queue-it.net/challengeapi/verify", json=json_queue)
+        verify_request_json = verify_request.json()
+        if verify_request_json['isVerified'] == True:
+            print("Passed CAPTCHA!")
+            # This request should redirect to https://nemlog-in.mitid.dk/login/mitid
+            request = session.get(f"https://digitalpost.queue-it.net/?c=digitalpost&e=prod01&t={target_url}&cid=da-DK&scv={json.dumps(verify_request_json['sessionInfo'])}")
+            breakpoint()
+            if request.url == "https://nemlog-in.mitid.dk/login/mitid":
+                passed_captcha = True
+            else:
+                sys.exit('Passed CAPTCHA but was unable to progress for an unknown reason (maybe some kind of rate limiting?). Exiting.')
+        else:
+            print("Failed CAPTCHA. Trying again in a second.")
+            try_count += 1
+            time.sleep(1)
+elif '.queue-it.net/softblock' in request.url and not queueit:
+    sys.exit('Queue-it CAPTCHA challenge detected. Please use the --queueit argument to try to pass this challenge. Exiting.')
+elif request.url != "https://nemlog-in.mitid.dk/login/mitid":
+    print(f"Unexpected URL, maybe something from QueueIT {request.url}")
+    raise Exception(request.content)
+
 soup = BeautifulSoup(request.text, features="html.parser")
 request_verification_token = soup.find('input', {'name': '__RequestVerificationToken'}).get('value')
-
 initialise_mitid_parameters = json.loads(aux_in_js_regex.findall(request.text)[0])
 
 # MitID procedure

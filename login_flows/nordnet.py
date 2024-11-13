@@ -8,7 +8,7 @@ from BrowserClient.Helpers import get_authentication_code, process_args, get_def
 argparser = get_default_args()
 args = argparser.parse_args()
 
-method, user_id, password, proxy = process_args(args)
+method, user_id, password, proxy, queueit = process_args(args)
 session = requests.Session()
 if proxy:
     session.proxies.update({"http": f"socks5://{proxy}", "https": f"socks5://{proxy}" })
