@@ -4,6 +4,7 @@ from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 sys.path.append("..")
 from BrowserClient.Helpers import get_authentication_code, process_args, generate_nem_login_parameters, get_default_args
+from ScrapingHelp.QueueIt import bypass_botdetect
 
 aux_in_js_regex = re.compile(r"\$\(function\(\)\{initiateMitId\((\{.*\})\)\}\);")
 
@@ -30,12 +31,9 @@ params = {
     "idp": "nemloginEboksRealm"
 }
 
-# Possibly you are going to need a QueueIT cookie.
-# Log on to e-boks in your browser with developer tools enabled to get this cookie
-# and uncomment the next line
-#session.cookies.update({"QueueITAccepted-SDFrts345E-V3_prod01": "ENTER VALUE FROM BROWSER HERE"})
+#request = session.get("https://gateway.digitalpost.dk/auth/oauth/authorize", params=params)
+request = bypass_botdetect(session, "https://gateway.digitalpost.dk/auth/oauth/authorize", params)
 
-request = session.get("https://gateway.digitalpost.dk/auth/oauth/authorize", params=params)
 soup = BeautifulSoup(request.text, features="html.parser")
 request_verification_token = soup.find('input', {'name': '__RequestVerificationToken'}).get('value')
 
