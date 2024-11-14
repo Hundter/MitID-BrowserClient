@@ -24,7 +24,7 @@ python main.py --user="my-really-easy-to-guess-username" --proxy="overpriced-pro
 ```
 
 ### Prerequisites
-Most prerequisites can be installed by running:
+Prerequisites can be installed by running:
 ```
 pip install requirements.txt
 ```
