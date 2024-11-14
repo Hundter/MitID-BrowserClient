@@ -3,5 +3,5 @@ PyJWT
 Requests
 beautifulsoup4
 lxml
-pytesseract
-pillow
+paddlepaddle
+paddleocr

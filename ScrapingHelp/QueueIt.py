@@ -1,7 +1,7 @@
 # Provides functions that may helpful in dealing with sites that use Queue-it as middleware
-import json, base64, re, requests, sys, pytesseract, io, time
+import json, base64, re, requests, sys, time
 from urllib.parse import urlparse, unquote, quote
-from PIL import Image
+from paddleocr import PaddleOCR
 
 challenge_checksum_regex = re.compile(r"challengeApiChecksumHash: '(.+?)',")
 challenge_reason_regex = re.compile(r"challengesIssuedByReason: ([0-9]+?),")
@@ -11,12 +11,12 @@ challenge_botdetect_host_regex = re.compile(r"botDetectHost: '(.+?)',")
 challenge_inqueue_url_regex = re.compile(r"inqueueUrl: '(.+?)',")
 
 
-# bypass_botdetect requires tesseract-ocr (https://github.com/tesseract-ocr/tesseract)
-# It should be installed and available in the environment path
 def bypass_botdetect(session : requests.Session, url : str, params = {}):
     request = session.get(url, params=params)
     if "queue-it.net" not in urlparse(request.url).hostname:
         return request
+
+    print("Hit Queue-it botdetect captcha, attempting to bypass")
 
     challenge_checksum = challenge_checksum_regex.findall(request.text)[0]
     challenge_reason = challenge_reason_regex.findall(request.text)[0]
@@ -51,10 +51,9 @@ def bypass_botdetect(session : requests.Session, url : str, params = {}):
 
             image_base64 = request.json()["imageBase64"]
 
-            image_string = io.BytesIO(base64.b64decode(image_base64))
-            image = Image.open(image_string)
-
-            challenge_solution = pytesseract.image_to_string(image).strip()
+            ocr = PaddleOCR(lang='en', show_log=False)
+            result = ocr.ocr(base64.b64decode(image_base64), det=False, cls=False)
+            challenge_solution = result[0][0][0].replace(" ", "")
             if not challenge_solution:
                 challenge_solution = ""
             else:
