@@ -29,5 +29,5 @@ Most prerequisites can be installed by running:
 pip install requirements.txt
 ```
 
-Some login flows make use of [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for captcha bypassing.
-Tesseract OCR needs to be installed and available in your PATH for those login flows to work.
+Some login flows make use of [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) for captcha bypassing.
+PaddleOCR will spend some time downloading models the first time you run any of these login flows.
