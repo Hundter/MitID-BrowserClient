@@ -57,4 +57,4 @@ request = session.post(soup.form['action'], data=params)
 
 request = session.get("https://www.borger.dk/mitoverblik")
 soup = BeautifulSoup(request.text, "lxml")
-print(f"You are {soup.select_one("span.subheader__username").text.strip()})
+print(f'You are {soup.select_one("span.subheader__username").text.strip()}')
