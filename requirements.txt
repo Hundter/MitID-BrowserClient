@@ -2,3 +2,6 @@ pycryptodome
 PyJWT
 Requests
 beautifulsoup4
+lxml
+paddlepaddle
+paddleocr

@@ -4,6 +4,7 @@ from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 sys.path.append("..")
 from BrowserClient.Helpers import get_authentication_code, process_args, generate_nem_login_parameters, get_default_args
+from ScrapingHelp.QueueIt import bypass_botdetect
 
 argparser = get_default_args()
 args = argparser.parse_args()
@@ -16,13 +17,24 @@ if proxy:
 # First part of mit.dk procedure
 state, nonce, code_verifier, code_challenge = generate_nem_login_parameters()
 redirect_url = 'https://post.mit.dk/main'
- 
-# Possibly you are going to need a QueueIT cookie.
-# Log on to mit.dk in your browser with developer tools enabled to get this cookie
-# and uncomment the next line
-#session.cookies.update({"QueueITAccepted-SDFrts345E-V3_prod01": "ENTER VALUE FROM BROWSER HERE"}) 
 
-request = session.get(f"https://gateway.mit.dk/view/client/authorization/login?client_id=view-client-id-mobile-prod-1-id&response_type=code&scope=openid&state={state}&code_challenge={code_challenge}&code_challenge_method=S256&response_mode=query&nonce={nonce}&redirect_uri={redirect_url}&deviceName=digitalpost-utilities&deviceId=pc&lang=en_US")
+params = {
+    "response_type": "code",
+    "client_id": "view-client-id-mobile-prod-1-id",
+    "redirect_uri": "https://post.mit.dk/main",
+    "scope": "openid",
+    "state": state,
+    "nonce": nonce,
+    "code_challenge": code_challenge,
+    "code_challenge_method": "S256",
+    "response_mode": "query",
+    "deviceName": "digitalpost-utilities",
+    "deviceId": "pc",
+    "lang": "en_US"
+}
+ 
+#request = session.get(f"https://gateway.mit.dk/view/client/authorization/login", params=params)
+request = bypass_botdetect(session, "https://gateway.mit.dk/view/client/authorization/login", params)
 
 if request.status_code != 200:
     print(f"Failed session setup attempt, status code {request.status_code}")
