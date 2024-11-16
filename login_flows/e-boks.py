@@ -3,7 +3,7 @@ import json, base64, re, requests, sys
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 sys.path.append("..")
-from BrowserClient.Helpers import get_authentication_code, process_args, generate_nem_login_parameters, get_default_args
+from BrowserClient.Helpers import get_authentication_code, process_args, generate_nem_login_parameters, get_default_args, choose_between_multiple_identitites
 from ScrapingHelp.QueueIt import bypass_botdetect
 
 aux_in_js_regex = re.compile(r"\$\(function\(\)\{initiateMitId\((\{.*\})\)\}\);")
@@ -51,34 +51,12 @@ params = {
 }
 
 request = session.post("https://nemlog-in.mitid.dk/login/mitid", data=params)
-
 soup = BeautifulSoup(request.text, features="html.parser")
 
 # User has more than one login option
 if request.url == 'https://nemlog-in.mitid.dk/loginoption':
-    data = {}
-    for soup_input in soup.form.select("input"):
-        try:
-            data[soup_input["name"]] = soup_input["value"]
-        except:    
-            data[soup_input["name"]] = ""
-    login_options = soup.select("div.list-link-box")
-    print('You can choose between different identities:\n')
-    identities = []
-    for i, login_option in enumerate(login_options):
-        print(f'{i+1}: {login_option.select_one("div.list-link-text").string}')
-        identities.append(i+1)
-    identity = input("Enter the identity you want to use:\n").strip()
-    try:
-        if int(identity) in identities:
-            selected_option = login_options[int(identity)-1].a["data-loginoptions"]
-            data["ChosenOptionJson"] = selected_option
-        else: 
-            raise Exception(f"Identity not in list of identities")
-    except:
-        raise Exception(f"Wrongly entered identity")
-    request = session.post(request.url, data=data)
-    soup = BeautifulSoup(request.text, features="html.parser")
+    request = choose_between_multiple_identitites(session, request, soup)
+    soup = BeautifulSoup(request.text, "xml")
         
 relay_state = soup.find('input', {'name': 'RelayState'}).get('value')
 saml_response = soup.find('input', {'name': 'SAMLResponse'}).get('value')

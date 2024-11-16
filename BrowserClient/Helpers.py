@@ -50,6 +50,31 @@ def get_authentication_code(session, aux, method, user_id, password):
     authorization_code = MitIDClient.finalize_authentication_and_get_authorization_code()
     return authorization_code
 
+def choose_between_multiple_identitites(session, request, soup):
+    data = {}
+    for soup_input in soup.form.select("input"):
+        try:
+            data[soup_input["name"]] = soup_input["value"]
+        except:    
+            data[soup_input["name"]] = ""
+    login_options = soup.select("div.list-link-box")
+    print('You can choose between different identities:\n')
+    identities = []
+    for i, login_option in enumerate(login_options):
+        print(f'{i+1}: {login_option.select_one("div.list-link-text").string}')
+        identities.append(i+1)
+    identity = input("Enter the identity you want to use:\n").strip()
+    try:
+        if int(identity) in identities:
+            selected_option = login_options[int(identity)-1].a["data-loginoptions"]
+            data["ChosenOptionJson"] = selected_option
+        else: 
+            raise Exception(f"Identity not in list of identities")
+    except:
+        raise Exception(f"Wrongly entered identity")
+    request = session.post(request.url, data=data)
+    return request
+
 def __generate_random_string():
     return binascii.hexlify(Random.new().read(28)).decode("utf-8")
 
