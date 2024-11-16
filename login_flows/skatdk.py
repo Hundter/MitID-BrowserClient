@@ -14,11 +14,6 @@ session = requests.Session()
 if proxy:
     session.proxies.update({"http": f"socks5://{proxy}", "https": f"socks5://{proxy}" })
 
-# First part of skat.dk procedure
-nem_login_state = uuid.uuid4()
-digits = string.digits
-form_digits = ''.join(secrets.choice(digits) for i in range(29))
-
 # Possibly you are going to need a QueueIT part of the login url.
 # Log on to skat.dk in your browser with developer tools enabled
 # and find the part to add to the url. 
