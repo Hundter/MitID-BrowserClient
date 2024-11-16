@@ -9,7 +9,6 @@ def get_default_args() -> argparse.ArgumentParser:
     parser.add_argument('--password', help='Your MitID password for use with the "TOKEN" login method. For example: "CorrectHorseBatteryStaple"', required=False)
     parser.add_argument('--method', choices=['APP', 'TOKEN'], help='Which method to use when logging in to MitID, default APP', default='APP', required=False)
     parser.add_argument('--proxy', help='An optional socks5 proxy to use for all communication with MitID', required=False)
-    parser.add_argument('--queueit', choices=['API', 'OCR'], help='Do you want to try to pass a possible Queue-it CAPTCHA challenge by API or local OCR detection?', required=False)
     return parser
 
 # Use this function to process the minimum required args for your login flow
@@ -22,7 +21,7 @@ def process_args(args):
         password = input("Please input your password\n")
     else:
         password = None
-    return method, user_id, password, args.proxy, args.queueit
+    return method, user_id, password, args.proxy
 
 # get_authentication_code is generally generic enough that you do not need to create your own
 # calls to BrowserClient
