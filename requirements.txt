@@ -5,3 +5,5 @@ beautifulsoup4
 lxml
 paddlepaddle
 paddleocr
+qrcode
+imageio

@@ -1,4 +1,4 @@
-import requests, time, hashlib, base64, hmac
+import requests, time, hashlib, base64, hmac, qrcode, imageio, tempfile
 from BrowserClient.CustomSRP import CustomSRP, hex_to_bytes, bytes_to_hex, pad
 
 class BrowserClient():
@@ -245,6 +245,7 @@ class BrowserClient():
         poll_url = r["pollUrl"]
         ticket = r["ticket"]
         print("Login request has been made, open your MitID app now")
+        gif_tmp_file = None
         while True:
             r = self.session.post(poll_url, json={"ticket": ticket})
 
@@ -255,9 +256,31 @@ class BrowserClient():
                 print(f"Please use the following OTP code in the app: {r.json()['channelBindingValue']}")
                 continue
 
-            if r.status_code == 200 and r.json()["status"] == "channel_validation_qr":
-                print(f"QR codes in the app are not yet supported")
-                raise Exception(r.content)
+            if r.status_code == 200 and r.json()["status"] == "channel_validation_tqr":
+                qr_data = {
+                    "v": 1,
+                    "p": 1,
+                    "t": 2,
+                    "h": r.json()["channelBindingValue"][:int(len(r.json()["channelBindingValue"])/2)],
+                    "uc": r.json()["updateCount"]
+                }
+                qr1 = qrcode.make(qr_data)
+
+                qr_data["p"] = 2
+                qr_data["h"] = r.json()["channelBindingValue"][int(len(r.json()["channelBindingValue"])/2):]
+                qr2 = qrcode.make(qr_data)
+
+                qr1_image = qr1.convert("RGB")
+                qr2_image = qr2.convert("RGB")
+
+                if gif_tmp_file is None:
+                    gif_tmp_file = tempfile.NamedTemporaryFile(suffix=".gif")
+                    print(f"Please open the QR code stored at '{gif_tmp_file.name}' and scan it in the app")
+                else:
+                    print("The QR code has been updated, please reload the QR code in your viewer")
+
+                imageio.mimsave(gif_tmp_file.name, [qr1_image, qr2_image], loop=0, fps=1)
+                continue
 
             if r.status_code == 200 and r.json()["status"] == "channel_verified":
                 print("The OTP/QR code has been verified, now waiting user to approve login")
