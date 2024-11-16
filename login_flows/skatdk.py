@@ -23,7 +23,7 @@ request = session.get(f"https://www.tastselv.skat.dk/borger/loginsso{queue_it_ur
 if request.status_code != 200:
     print(f"Failed session setup attempt, status code {request.status_code}")
     raise Exception(request.content)
-elif 'vent.skat.dk/softblock' in request.url and queueit:
+elif 'vent.skat.dk/softblock' in request.url:
     print('Queue-it CAPTCHA challenge detected. Trying to pass...')
     from ScrapingHelp.QueueIt import bypass_botdetect
     request = bypass_botdetect(session, f"https://www.tastselv.skat.dk/borger/loginsso{queue_it_url_params}")    
