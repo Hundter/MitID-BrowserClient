@@ -1,6 +1,7 @@
 import binascii, base64, hashlib, argparse
 from Crypto import Random
 from BrowserClient.BrowserClient import BrowserClient
+from bs4 import BeautifulSoup
 
 # Use this function to add the minimum required args to your login flow
 def get_default_args() -> argparse.ArgumentParser:
@@ -73,7 +74,8 @@ def choose_between_multiple_identitites(session, request, soup):
     except:
         raise Exception(f"Wrongly entered identity")
     request = session.post(request.url, data=data)
-    return request
+    soup = BeautifulSoup(request.text, "xml")
+    return request, soup
 
 def __generate_random_string():
     return binascii.hexlify(Random.new().read(28)).decode("utf-8")
