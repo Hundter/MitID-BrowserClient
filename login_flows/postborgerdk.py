@@ -1,9 +1,8 @@
-# Script for https://mit.dk
+# Script for https://post.borger.dk
 import requests, json, base64, sys
-from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 sys.path.append("..")
-from BrowserClient.Helpers import get_authentication_code, process_args, generate_nem_login_parameters, get_default_args, choose_between_multiple_identitites
+from BrowserClient.Helpers import get_authentication_code, process_args, get_default_args, choose_between_multiple_identitites
 from ScrapingHelp.QueueIt import bypass_botdetect
 
 argparser = get_default_args()
@@ -14,27 +13,8 @@ session = requests.Session()
 if proxy:
     session.proxies.update({"http": f"socks5://{proxy}", "https": f"socks5://{proxy}" })
 
-# First part of mit.dk procedure
-state, nonce, code_verifier, code_challenge = generate_nem_login_parameters()
-redirect_url = 'https://post.mit.dk/main'
-
-params = {
-    "response_type": "code",
-    "client_id": "view-client-id-mobile-prod-1-id",
-    "redirect_uri": "https://post.mit.dk/main",
-    "scope": "openid",
-    "state": state,
-    "nonce": nonce,
-    "code_challenge": code_challenge,
-    "code_challenge_method": "S256",
-    "response_mode": "query",
-    "deviceName": "digitalpost-utilities",
-    "deviceId": "pc",
-    "lang": "en_US"
-}
- 
-#request = session.get(f"https://gateway.mit.dk/view/client/authorization/login", params=params)
-request = bypass_botdetect(session, "https://gateway.mit.dk/view/client/authorization/login", params)
+# First part of post.borger.dk procedure
+request = bypass_botdetect(session, "https://auth.post.borger.dk/web/auth/login?returnurl=https://post.borger.dk/&idp=nemloginRealm")
 
 if request.status_code != 200:
     print(f"Failed session setup attempt, status code {request.status_code}")
@@ -42,8 +22,9 @@ if request.status_code != 200:
 elif request.url != "https://nemlog-in.mitid.dk/login/mitid":
     print(f"Unexpected URL, maybe something from QueueIT {request.url}")
     raise Exception(request.content)
-    
+
 soup = BeautifulSoup(request.text, 'lxml')
+
 request_verification_token = soup.find('input', {'name': '__RequestVerificationToken'}).get('value')
 search_string = '"Aux":"'
 start_aux = request.text.index(search_string)+len(search_string)
@@ -61,8 +42,7 @@ params = {
 }
 
 request = session.post("https://nemlog-in.mitid.dk/login/mitid", data=params)
-
-soup = BeautifulSoup(request.text, features="html.parser")
+soup = BeautifulSoup(request.text, "lxml")
 
 # User has more than one login option
 if request.url == 'https://nemlog-in.mitid.dk/loginoption':
@@ -76,18 +56,10 @@ params = {
     "RelayState": relay_state,
     "SAMLResponse": saml_response
 }
+request = session.post(soup.form['action'], data=params)
 
-request = session.post("https://gateway.digitalpost.dk/auth/s9/mit-dk-nemlogin/ssoack", data=params)
-
-parsed_url = urlparse(request.url)
-code = parse_qs(parsed_url.query)['code'][0]
-
-request = session.post(f"https://gateway.mit.dk/view/client/authorization/token?grant_type=authorization_code&redirect_uri={redirect_url}&client_id=view-client-id-mobile-prod-1-id&code={code}&code_verifier={code_verifier}")
-
-tokens = json.loads(request.text)
-session.headers['mitdkToken'] = tokens['access_token']
-session.headers['ngdpToken'] = tokens['ngdp']['access_token']
-session.headers['platform'] = 'web'
-
-request = session.get("https://gateway.mit.dk/view/client/users")
+# Use https://api.post.borger.dk/api/streamaddresses (or developer tools in your browser)
+# for a list of API calls
+session.headers['X-XSRF-TOKEN'] = session.cookies['XSRF-REQUEST-TOKEN']
+request = session.get("https://api.post.borger.dk/api/mailboxes?size=1000")
 print(request.json())
