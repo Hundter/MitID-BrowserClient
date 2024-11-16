@@ -46,8 +46,7 @@ soup = BeautifulSoup(request.text, "lxml")
 
 # User has more than one login option
 if request.url == 'https://nemlog-in.mitid.dk/loginoption':
-    request = choose_between_multiple_identitites(session, request, soup)
-    soup = BeautifulSoup(request.text, "lxml")
+    request, soup = choose_between_multiple_identitites(session, request, soup)
         
 relay_state = soup.find('input', {'name': 'RelayState'}).get('value')
 saml_response = soup.find('input', {'name': 'SAMLResponse'}).get('value')
