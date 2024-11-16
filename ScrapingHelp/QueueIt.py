@@ -12,7 +12,7 @@ challenge_inqueue_url_regex = re.compile(r"inqueueUrl: '(.+?)',")
 
 def bypass_botdetect(session : requests.Session, url : str, params = {}):
     request = session.get(url, params=params)
-    if "queue-it.net" not in urlparse(request.url).hostname:
+    if not urlparse(request.url).path.startswith("/softblock/"):
         return request
 
     print("Hit Queue-it botdetect captcha, attempting to bypass")
