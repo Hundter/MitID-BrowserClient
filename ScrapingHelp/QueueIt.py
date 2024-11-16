@@ -1,7 +1,6 @@
 # Provides functions that may helpful in dealing with sites that use Queue-it as middleware
 import json, base64, re, requests, sys, time
 from urllib.parse import urlparse, unquote, quote
-from paddleocr import PaddleOCR
 
 challenge_checksum_regex = re.compile(r"challengeApiChecksumHash: '(.+?)',")
 challenge_reason_regex = re.compile(r"challengesIssuedByReason: ([0-9]+?),")
@@ -51,6 +50,8 @@ def bypass_botdetect(session : requests.Session, url : str, params = {}):
 
             image_base64 = request.json()["imageBase64"]
 
+            # Import PaddleOCR here, as the import is slow and should only be done if strictly necessary
+            from paddleocr import PaddleOCR
             ocr = PaddleOCR(lang='en', show_log=False)
             result = ocr.ocr(base64.b64decode(image_base64), det=False, cls=False)
             challenge_solution = result[0][0][0].replace(" ", "")
