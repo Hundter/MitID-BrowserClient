@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 sys.path.append("..")
 from BrowserClient.BrowserClient import BrowserClient
 from BrowserClient.Helpers import get_authentication_code, process_args, get_default_args
+from ScrapingHelp.QueueIt import bypass_botdetect
 
 argparser = get_default_args()
 args = argparser.parse_args()
@@ -18,15 +19,11 @@ if proxy:
 # and find the part to add to the url. 
 queue_it_url_params = ""
 
-request = session.get(f"https://www.tastselv.skat.dk/borger/loginsso{queue_it_url_params}")
+request = bypass_botdetect(session, f"https://www.tastselv.skat.dk/borger/loginsso{queue_it_url_params}")
 
 if request.status_code != 200:
     print(f"Failed session setup attempt, status code {request.status_code}")
     raise Exception(request.content)
-elif 'vent.skat.dk/softblock' in request.url:
-    print('Queue-it CAPTCHA challenge detected. Trying to pass...')
-    from ScrapingHelp.QueueIt import bypass_botdetect
-    request = bypass_botdetect(session, f"https://www.tastselv.skat.dk/borger/loginsso{queue_it_url_params}")    
 if 'https://vent.skat.dk/?c=skat' in request.url:
     sys.exit('It seems you have been placed in a Queue-it waiting line. Currently no way to bypass this. Exiting.')
 if request.url != "https://nemlog-in.mitid.dk/login/mitid":
@@ -53,7 +50,7 @@ params = {
 
 request = session.post("https://nemlog-in.mitid.dk/login/mitid", data=params)
 
-soup = BeautifulSoup(request.text, features="html.parser")
+soup = BeautifulSoup(request.text, "lxml")
 relay_state = soup.find('input', {'name': 'RelayState'}).get('value')
 saml_response = soup.find('input', {'name': 'SAMLResponse'}).get('value')
 

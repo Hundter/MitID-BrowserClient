@@ -50,7 +50,7 @@ soup = BeautifulSoup(request.text, "lxml")
 # User has more than one login option
 if request.url == 'https://nemlog-in.mitid.dk/loginoption':
     request = choose_between_multiple_identitites(session, request, soup)
-    soup = BeautifulSoup(request.text, "lxml")
+    soup = BeautifulSoup(request.text, "xml")
 
 params = {soup.form.input['name']: soup.form.input['value']}
 request = session.post(soup.form['action'], data=params)
