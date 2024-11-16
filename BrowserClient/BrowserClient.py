@@ -161,7 +161,7 @@ class BrowserClient():
 
         if r.json()["errors"] and len(r.json()["errors"]) > 0 and r.json()["errors"][0]["errorCode"] == "TOTP_INVALID":
             error_text = r.json()["errors"][0]["message"]
-            print(f"Could log in with the provided TOTP code, got the following message: {error_text}")
+            print(f"Could not log in with the provided TOTP code, got the following message: {error_text}")
             raise Exception(r.content)
 
         r = r.json()
@@ -223,7 +223,7 @@ class BrowserClient():
         r = r.json()
         if r["errors"] and len(r["errors"]) > 0 and r["errors"][0]["errorCode"] == "PASSWORD_INVALID":
             error_text = r["errors"][0]["message"]
-            print(f"Could log in with the provided password, got the following message: {error_text}")
+            print(f"Could not log in with the provided password, got the following message: {error_text}")
             raise Exception(r.content)
         
         self.finalization_authentication_session_id = r["nextSessionId"]
