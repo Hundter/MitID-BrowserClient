@@ -31,9 +31,7 @@ params = {
     "idp": "nemloginEboksRealm"
 }
 
-#request = session.get("https://gateway.digitalpost.dk/auth/oauth/authorize", params=params)
 request = bypass_botdetect(session, "https://gateway.digitalpost.dk/auth/oauth/authorize", params)
-
 soup = BeautifulSoup(request.text, features="html.parser")
 request_verification_token = soup.find('input', {'name': '__RequestVerificationToken'}).get('value')
 
@@ -55,8 +53,7 @@ soup = BeautifulSoup(request.text, features="html.parser")
 
 # User has more than one login option
 if request.url == 'https://nemlog-in.mitid.dk/loginoption':
-    request = choose_between_multiple_identitites(session, request, soup)
-    soup = BeautifulSoup(request.text, "lxml")
+    request, soup = choose_between_multiple_identitites(session, request, soup)
         
 relay_state = soup.find('input', {'name': 'RelayState'}).get('value')
 saml_response = soup.find('input', {'name': 'SAMLResponse'}).get('value')
@@ -66,7 +63,7 @@ params = {
     "SAMLResponse": saml_response
 }
 
-request = session.post("https://gateway.digitalpost.dk/auth/s9/e-boks-nemlogin/ssoack", data=params)
+request = session.post(soup.form['action'], data=params)
 parsed_url = urlparse(request.url)
 code = parse_qs(parsed_url.query)['code'][0]
 

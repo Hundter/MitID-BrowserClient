@@ -76,7 +76,7 @@ params = {
     "SAMLResponse": saml_response
 }
 
-request = session.post("https://gateway.digitalpost.dk/auth/s9/mit-dk-nemlogin/ssoack", data=params)
+request = session.post(soup.form['action'], data=params)
 
 parsed_url = urlparse(request.url)
 code = parse_qs(parsed_url.query)['code'][0]
