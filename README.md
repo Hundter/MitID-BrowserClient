@@ -26,7 +26,7 @@ python main.py --user="my-really-easy-to-guess-username" --proxy="overpriced-pro
 ### Prerequisites
 Prerequisites can be installed by running:
 ```
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
 Some login flows make use of [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) for captcha bypassing.
