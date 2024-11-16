@@ -56,5 +56,5 @@ params = {soup.form.input['name']: soup.form.input['value']}
 request = session.post(soup.form['action'], data=params)
 
 request = session.get("https://www.borger.dk/mitoverblik")
-soup = BeautifulSoup(request.text, "lxml")
+soup = BeautifulSoup(request.text, "xml")
 print(f'You are {soup.select_one("span.subheader__username").text.strip()}')
