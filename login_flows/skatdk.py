@@ -1,6 +1,5 @@
 # Script for https://www.tastselv.skat.dk
-import requests, json, base64, argparse, sys, string, secrets, uuid, random
-from urllib.parse import urlparse, parse_qs
+import requests, json, base64, sys
 from bs4 import BeautifulSoup
 sys.path.append("..")
 from BrowserClient.BrowserClient import BrowserClient
