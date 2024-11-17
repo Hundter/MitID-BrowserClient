@@ -14,7 +14,7 @@ if proxy:
     session.proxies.update({"http": f"socks5://{proxy}", "https": f"socks5://{proxy}" })
 
 # First part of borger.dk procedure
-request = session.get(f"https://www.borger.dk/mitoverblik")
+request = session.get("https://www.borger.dk/mitoverblik")
 soup = BeautifulSoup(request.text, "xml")
 params = {soup.form.input['name']: soup.form.input['value']}
 request = session.post(soup.form['action'], data=params)
