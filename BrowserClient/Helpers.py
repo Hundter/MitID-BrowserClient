@@ -46,7 +46,7 @@ def get_authentication_code(session, aux, method, user_id, password):
     elif method == "APP" and "APP" not in available_authenticators:    
         raise Exception(f"App authentication method chosen but not available for MitID user")
     else:
-        raise Exception(f"Unknown authenticator method {method}")
+        raise Exception(f"Unknown authenticator method: {method}")
 
     authorization_code = MitIDClient.finalize_authentication_and_get_authorization_code()
     return authorization_code
