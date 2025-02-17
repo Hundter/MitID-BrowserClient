@@ -114,7 +114,6 @@ class BrowserClient():
         if self.current_authenticator_type != authenticator_type:
             raise Exception(f"Was not able to choose the desired authenticator ({authenticator_type}), instead we received ({self.current_authenticator_type})")
 
-
     def authenticate_with_token(self, token_digits: str):
         self.__select_authenticator("TOKEN")
 
@@ -221,10 +220,19 @@ class BrowserClient():
             raise Exception(r.content)
         
         r = r.json()
-        if r["errors"] and len(r["errors"]) > 0 and r["errors"][0]["errorCode"] == "PASSWORD_INVALID":
-            error_text = r["errors"][0]["message"]
-            print(f"Could not log in with the provided password, got the following message: {error_text}")
-            raise Exception(r.content)
+        if r["errors"] and len(r["errors"]) > 0:
+            if r["errors"][0]["errorCode"] == "PASSWORD_INVALID":
+                error_text = r["errors"][0]["message"]
+                print(f"Could not log in with the provided password, got the following message: {error_text}")
+                raise Exception(r)
+            elif r["errors"][0]["errorCode"] == "core.psd2.error":
+                error_text = r["errors"][0]["message"]
+                print(f"Could not log in due to an error, probably due to a wrong password provided. Got the following message: {error_text}")
+                raise Exception(r)
+            else:
+                error_text = r["errors"][0]["message"]
+                print(f"Could not log in due to an unknown error, got the following message: {error_text}")
+                raise Exception(r)
         
         self.finalization_authentication_session_id = r["nextSessionId"]
         print("Password was accepted, you can now finalize authentication and receive your authorization code")
@@ -360,7 +368,7 @@ class BrowserClient():
 
     def finalize_authentication_and_get_authorization_code(self):
         if not self.finalization_authentication_session_id:
-            raise Exception("No finalization session ID set, make sure you have completed an authentication flow")
+            raise Exception("No finalization session ID set, make sure you have completed an authentication flow. This error may be triggered by entering a wrong password.")
         
         r = self.session.put(f"https://www.mitid.dk/mitid-core-client-backend/v1/authentication-sessions/{self.finalization_authentication_session_id}/finalization")
         if r.status_code != 200:
