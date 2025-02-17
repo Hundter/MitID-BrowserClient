@@ -368,7 +368,7 @@ class BrowserClient():
 
     def finalize_authentication_and_get_authorization_code(self):
         if not self.finalization_authentication_session_id:
-            raise Exception("No finalization session ID set, make sure you have completed an authentication flow. This error may be triggered by entering a wrong password.")
+            raise Exception("No finalization session ID set, make sure you have completed an authentication flow.")
         
         r = self.session.put(f"https://www.mitid.dk/mitid-core-client-backend/v1/authentication-sessions/{self.finalization_authentication_session_id}/finalization")
         if r.status_code != 200:
