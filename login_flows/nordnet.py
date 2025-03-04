@@ -4,6 +4,7 @@ from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 sys.path.append("..")
 from BrowserClient.Helpers import get_authentication_code, process_args, get_default_args
+from datetime import datetime, date
 
 argparser = get_default_args()
 args = argparser.parse_args()
@@ -61,5 +62,30 @@ payload = {
 session.headers['client-id'] = 'NEXT'
 request = session.post('https://www.nordnet.dk/nnxapi/authentication/v2/sessions', json=payload)
 request = session.post('https://www.nordnet.dk/api/2/authentication/nnx-session/login', json={})
+
+# Get accounts
 accounts = session.get('https://www.nordnet.dk/api/2/accounts')
 print(accounts.json())
+
+# Get transactions
+accids = (',').join([str(account['accid']) for account in accounts.json()])
+fromdate = '2013-01-01'
+todate = datetime.strftime(date.today(), '%Y-%m-%d')
+
+bearer_token = request.headers['nn-jwt']
+session.headers['authorization'] = f'Bearer {bearer_token}'
+
+# Get JSON transactions
+# Limited to 800 results, the maximum may be larger
+# Change offset to get subsequent transactions
+# You can get total transactions by requesting: 
+# f'https://api.prod.nntech.io/transaction/transaction-and-notes/v1/transaction-summary?fromDate={fromdate}&toDate={todate}&accids={accids}&includeCancellations=false'
+transactions_json = session.get(f'https://api.prod.nntech.io/transaction/transaction-and-notes/v1/transactions/page?fromDate={fromdate}&toDate={todate}&accids={accids}&offset=0&limit=800&sort=ACCOUNTING_DATE&sortOrder=DESC&includeCancellations=false')
+
+# Get CSV transactions
+# Tab delimited. To change to semicolon-delimited, add:
+# csv_file = csv_file.replace('\t',';')
+transactions_csv = session.get(f'https://api.prod.nntech.io/transaction/transaction-and-notes/v1/transactions/csv/filter?accids={accids}&fromDate={fromdate}&toDate={todate}&sort=ACCOUNTING_DATE&sortOrder=DESC&includeCancellations=false')
+transactions_csv_bytes = transactions_csv.json()['bytes']
+transactions_csv_decoded_bytes = base64.b64decode(transactions_csv_bytes)
+csv_file = transactions_csv_decoded_bytes.decode('utf-16')
