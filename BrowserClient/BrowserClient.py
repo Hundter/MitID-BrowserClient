@@ -285,9 +285,10 @@ class BrowserClient():
                     gif_tmp_file = tempfile.NamedTemporaryFile(suffix=".gif")
                     print(f"Please open the QR code stored at '{gif_tmp_file.name}' and scan it in the app")
                 else:
+                    gif_tmp_file.seek(0)
                     print("The QR code has been updated, please reload the QR code in your viewer")
 
-                imageio.mimsave(gif_tmp_file.name, [qr1_image, qr2_image], loop=0, fps=1)
+                imageio.mimsave(gif_tmp_file, [qr1_image, qr2_image], "gif", loop=0, fps=1)
                 continue
 
             if r.status_code == 200 and r.json()["status"] == "channel_verified":
