@@ -75,6 +75,8 @@ request = session.post('https://www.nordnet.dk/api/2/authentication/nnx-session/
 bearer_token = request.headers['nn-jwt']
 print(bearer_token)
 
+#session.headers['authorization'] = f'Bearer {bearer_token}'
+
 # Get JSON transactions
 # Limited to 800 results, the maximum may be larger
 # Change offset to get subsequent transactions
