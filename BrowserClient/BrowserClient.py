@@ -1,4 +1,4 @@
-import requests, time, hashlib, base64, hmac, qrcode, imageio, tempfile
+import requests, time, hashlib, base64, hmac, qrcode, os, threading
 from BrowserClient.CustomSRP import CustomSRP, hex_to_bytes, bytes_to_hex, pad
 
 class BrowserClient():
@@ -22,6 +22,19 @@ class BrowserClient():
         print(f"Beginning login session for {self.service_provider_name}:")
         print(f"{self.reference_text_header}")
         print(f"{self.reference_text_body}")
+
+    def __display_qr_ascii(self, qr_data1, qr_data2, stop_event):
+        def render_qr(qr):
+            matrix = qr.get_matrix()
+            return "\n".join("".join("██" if cell else "  " for cell in row) for row in matrix)
+
+        frame = True
+        while not stop_event.is_set():
+            os.system("cls" if os.name == "nt" else "clear")
+            print("Scan this QR Code in the app (Ctrl+C to exit):")
+            print(render_qr(qr_data1 if frame else qr_data2))
+            frame = not frame
+            stop_event.wait(0.5)
 
     def __convert_human_authenticator_name_to_combination_id(self, authenticator_name):
         match authenticator_name:
@@ -272,26 +285,34 @@ class BrowserClient():
                     "h": r.json()["channelBindingValue"][:int(len(r.json()["channelBindingValue"])/2)],
                     "uc": r.json()["updateCount"]
                 }
-                qr1 = qrcode.make(qr_data)
+                qr1 = qrcode.QRCode()
+                qr1.add_data(qr_data)
+                qr1.make()
 
                 qr_data["p"] = 2
                 qr_data["h"] = r.json()["channelBindingValue"][int(len(r.json()["channelBindingValue"])/2):]
-                qr2 = qrcode.make(qr_data)
 
-                qr1_image = qr1.convert("RGB")
-                qr2_image = qr2.convert("RGB")
+                qr2 = qrcode.QRCode()
+                qr2.add_data(qr_data)
+                qr2.make()
 
                 if gif_tmp_file is None:
-                    gif_tmp_file = tempfile.NamedTemporaryFile(suffix=".gif")
-                    print(f"Please open the QR code stored at '{gif_tmp_file.name}' and scan it in the app")
+                    qr_stop_event = threading.Event()
+                    qr_display_thread = threading.Thread(target=self.__display_qr_ascii, args=(qr1, qr2, qr_stop_event))
+                    qr_display_thread.start()
                 else:
-                    gif_tmp_file.seek(0)
-                    print("The QR code has been updated, please reload the QR code in your viewer")
+                    qr_stop_event.set()
+                    qr_display_thread.join()
+                    qr_stop_event = threading.Event()
+                    qr_display_thread = threading.Thread(target=self.__display_qr_ascii, args=(qr1, qr2, qr_stop_event))
+                    qr_display_thread.start()
 
-                imageio.mimsave(gif_tmp_file, [qr1_image, qr2_image], "gif", loop=0, fps=1)
                 continue
 
             if r.status_code == 200 and r.json()["status"] == "channel_verified":
+                if qr_display_thread and qr_display_thread.is_alive():
+                    qr_stop_event.set()
+                    qr_display_thread.join()
                 print("The OTP/QR code has been verified, now waiting user to approve login")
                 continue
 
