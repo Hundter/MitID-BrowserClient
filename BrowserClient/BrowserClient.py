@@ -266,7 +266,7 @@ class BrowserClient():
         poll_url = r["pollUrl"]
         ticket = r["ticket"]
         print("Login request has been made, open your MitID app now")
-        gif_tmp_file = None
+        qr_stop_event = None
         while True:
             r = self.session.post(poll_url, json={"ticket": ticket})
 
@@ -296,7 +296,7 @@ class BrowserClient():
                 qr2.add_data(qr_data)
                 qr2.make()
 
-                if gif_tmp_file is None:
+                if qr_stop_event is None:
                     qr_stop_event = threading.Event()
                     qr_display_thread = threading.Thread(target=self.__display_qr_ascii, args=(qr1, qr2, qr_stop_event))
                     qr_display_thread.start()
