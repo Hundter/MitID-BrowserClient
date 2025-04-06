@@ -26,13 +26,15 @@ class BrowserClient():
     def __display_qr_ascii(self, qr_data1, qr_data2, stop_event):
         def render_qr(qr):
             matrix = qr.get_matrix()
-            return "\n".join("".join("██" if cell else "  " for cell in row) for row in matrix)
+            return "\n".join("".join(("  " if cell else "██" for cell in row)) for row in matrix)
 
         frame = True
+        rendered_qr_1 = render_qr(qr_data1)
+        rendered_qr_2 = render_qr(qr_data2)
         while not stop_event.is_set():
             os.system("cls" if os.name == "nt" else "clear")
             print("Scan this QR Code in the app (Ctrl+C to exit):")
-            print(render_qr(qr_data1 if frame else qr_data2))
+            print(rendered_qr_1 if frame else rendered_qr_2)
             frame = not frame
             stop_event.wait(0.5)
 
@@ -285,14 +287,14 @@ class BrowserClient():
                     "h": r.json()["channelBindingValue"][:int(len(r.json()["channelBindingValue"])/2)],
                     "uc": r.json()["updateCount"]
                 }
-                qr1 = qrcode.QRCode()
+                qr1 = qrcode.QRCode(border=1)
                 qr1.add_data(qr_data)
                 qr1.make()
 
                 qr_data["p"] = 2
                 qr_data["h"] = r.json()["channelBindingValue"][int(len(r.json()["channelBindingValue"])/2):]
 
-                qr2 = qrcode.QRCode()
+                qr2 = qrcode.QRCode(border=1)
                 qr2.add_data(qr_data)
                 qr2.make()
 
