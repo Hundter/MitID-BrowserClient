@@ -32,11 +32,11 @@ class BrowserClient():
         frame = True
         while not stop_event.is_set():
             os.system("cls" if os.name == "nt" else "clear")
-            print("Scan this QR Code in the app (Ctrl+C to exit):")
+            print("Scan this QR Code in the app:")
             qr1, qr2 = self.__get_qr_codes()
             print(render_qr(qr1) if frame else render_qr(qr2))
             frame = not frame
-            stop_event.wait(0.5)
+            stop_event.wait(1)
     
     def __set_qr_codes(self, qr1, qr2):
         with self.qr_display_thread_lock:
