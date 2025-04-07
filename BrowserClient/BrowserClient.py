@@ -1,4 +1,4 @@
-import requests, time, hashlib, base64, hmac, qrcode, os, threading
+import requests, time, hashlib, base64, hmac, qrcode, os, threading, json
 from BrowserClient.CustomSRP import CustomSRP, hex_to_bytes, bytes_to_hex, pad
 
 class BrowserClient():
@@ -297,14 +297,14 @@ class BrowserClient():
                     "uc": r.json()["updateCount"]
                 }
                 qr1 = qrcode.QRCode(border=1)
-                qr1.add_data(qr_data)
+                qr1.add_data(json.dumps(qr_data, separators=(',', ':')))
                 qr1.make()
 
                 qr_data["p"] = 2
                 qr_data["h"] = r.json()["channelBindingValue"][int(len(r.json()["channelBindingValue"])/2):]
 
                 qr2 = qrcode.QRCode(border=1)
-                qr2.add_data(qr_data)
+                qr2.add_data(json.dumps(qr_data, separators=(',', ':')))
                 qr2.make()
 
                 self.__set_qr_codes(qr1, qr2)
