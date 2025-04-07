@@ -3,6 +3,7 @@ from BrowserClient.CustomSRP import CustomSRP, hex_to_bytes, bytes_to_hex, pad
 
 class BrowserClient():
     def __init__(self, client_hash: str, authentication_session_id: str, requests_session = requests.Session()):
+        self.qr_display_thread_lock = threading.Lock()
         self.session = requests_session
 
         self.client_hash = client_hash
@@ -23,20 +24,28 @@ class BrowserClient():
         print(f"{self.reference_text_header}")
         print(f"{self.reference_text_body}")
 
-    def __display_qr_ascii(self, qr_data1, qr_data2, stop_event):
+    def __display_qr_ascii(self, stop_event):
         def render_qr(qr):
             matrix = qr.get_matrix()
             return "\n".join("".join(("  " if cell else "██" for cell in row)) for row in matrix)
 
         frame = True
-        rendered_qr_1 = render_qr(qr_data1)
-        rendered_qr_2 = render_qr(qr_data2)
         while not stop_event.is_set():
             os.system("cls" if os.name == "nt" else "clear")
             print("Scan this QR Code in the app (Ctrl+C to exit):")
-            print(rendered_qr_1 if frame else rendered_qr_2)
+            qr1, qr2 = self.__get_qr_codes()
+            print(render_qr(qr1) if frame else render_qr(qr2))
             frame = not frame
             stop_event.wait(0.5)
+    
+    def __set_qr_codes(self, qr1, qr2):
+        with self.qr_display_thread_lock:
+            self.qr1 = qr1
+            self.qr2 = qr2
+
+    def __get_qr_codes(self):
+        with self.qr_display_thread_lock:
+            return self.qr1, self.qr2
 
     def __convert_human_authenticator_name_to_combination_id(self, authenticator_name):
         match authenticator_name:
@@ -298,15 +307,11 @@ class BrowserClient():
                 qr2.add_data(qr_data)
                 qr2.make()
 
+                self.__set_qr_codes(qr1, qr2)
+
                 if qr_stop_event is None:
                     qr_stop_event = threading.Event()
-                    qr_display_thread = threading.Thread(target=self.__display_qr_ascii, args=(qr1, qr2, qr_stop_event))
-                    qr_display_thread.start()
-                else:
-                    qr_stop_event.set()
-                    qr_display_thread.join()
-                    qr_stop_event = threading.Event()
-                    qr_display_thread = threading.Thread(target=self.__display_qr_ascii, args=(qr1, qr2, qr_stop_event))
+                    qr_display_thread = threading.Thread(target=self.__display_qr_ascii, args=[qr_stop_event])
                     qr_display_thread.start()
 
                 continue
@@ -319,6 +324,9 @@ class BrowserClient():
                 continue
 
             if not (r.status_code == 200 and r.json()["status"] == "OK" and r.json()["confirmation"] == True):
+                if qr_display_thread and qr_display_thread.is_alive():
+                    qr_stop_event.set()
+                    qr_display_thread.join()
                 print("Login request was not accepted")
                 raise Exception(r.content)
 
