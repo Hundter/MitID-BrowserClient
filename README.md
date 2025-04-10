@@ -5,9 +5,6 @@ The code no longer complete garbage, but it is still in a POC state
 
 Currently supports logins using the MitID app (OTP and QR Code), and the code token reader device.
 
-QR codes are a little finicky to use since the QR code is updated every 10 seconds to be time-relevant.
-Either use an image viewer that will auto-reload the gif as it gets updated, or scan the QR code within 10 seconds of opening the QR code gif.
-
 It's also hardcoded to use mitid.dk's login page for now
 
 ### Examples
