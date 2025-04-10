@@ -3,7 +3,7 @@ import requests, json, base64, sys
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 sys.path.append("..")
-from BrowserClient.BrowserClient import BrowserClient
+sys.path.append(".")
 from BrowserClient.Helpers import get_authentication_code, process_args, get_default_args, choose_between_multiple_identitites
 from ScrapingHelp.QueueIt import bypass_botdetect
 

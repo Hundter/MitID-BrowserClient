@@ -3,6 +3,7 @@ import requests, json, base64, sys, string, secrets, uuid
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 sys.path.append("..")
+sys.path.append(".")
 from BrowserClient.Helpers import get_authentication_code, process_args, get_default_args
 from datetime import datetime, date
 

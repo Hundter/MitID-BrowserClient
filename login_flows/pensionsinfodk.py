@@ -2,8 +2,8 @@
 import requests, json, base64, sys
 from bs4 import BeautifulSoup
 sys.path.append("..")
-from BrowserClient.BrowserClient import BrowserClient
-from BrowserClient.Helpers import get_authentication_code, process_args, generate_nem_login_parameters, get_default_args
+sys.path.append(".")
+from BrowserClient.Helpers import get_authentication_code, process_args, get_default_args
 
 argparser = get_default_args()
 args = argparser.parse_args()

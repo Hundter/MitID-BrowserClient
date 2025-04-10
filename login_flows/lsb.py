@@ -2,6 +2,7 @@
 import requests, json, base64, sys, json, re
 from bs4 import BeautifulSoup
 sys.path.append("..")
+sys.path.append(".")
 from BrowserClient.Helpers import get_authentication_code, process_args, get_default_args
 
 argparser = get_default_args()
