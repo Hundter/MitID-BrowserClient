@@ -13,7 +13,7 @@ Login to the mitid.dk website using the MitID APP
 python login_flows/mitiddk.py --user="my-really-easy-to-guess-username" --method=APP
 ```
 \
-Login to the mitid.dk website using the the code reader and your password
+Login to the mitid.dk website using the code reader and your password
 ```
 python login_flows/mitiddk.py --user="my-really-easy-to-guess-username" --method=TOKEN
 ```
