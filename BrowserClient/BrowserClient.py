@@ -278,6 +278,7 @@ class BrowserClient():
         ticket = r["ticket"]
         print("Login request has been made, open your MitID app now")
         qr_stop_event = None
+        qr_display_thread = None
         while True:
             r = self.session.post(poll_url, json={"ticket": ticket})
 
