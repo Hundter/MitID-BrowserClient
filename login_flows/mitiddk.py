@@ -65,7 +65,7 @@ uuid = access_token_payload["sub"]
 
 session = requests.Session()
 session.headers["Authorization"] = f"Bearer {access_token}"
-request = session.get(f"https://www.mitid.dk/administration/v6/identities/{uuid}")
+request = session.get(f"https://www.mitid.dk/administration/v8/identities/{uuid}")
 identity_response = request.json()
 
 print("You have the following identities:")
