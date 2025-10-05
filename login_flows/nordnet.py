@@ -15,9 +15,6 @@ session = requests.Session()
 if proxy:
     session.proxies.update({"http": f"socks5://{proxy}", "https": f"socks5://{proxy}" })
 
-# regex based on \"ntag\":\"asd21341-1594-4de3-6412-44444da32b16\"
-ntag_regex_pattern = re.compile(r'\\"ntag\\":\\"([a-z0-9-]{8}-[a-z0-9-]{4}-[a-z0-9-]{4}-[a-z0-9-]{4}-[a-z0-9-]{12})\\"')
-
 # First part of Nordnet procedure
 nem_login_state = uuid.uuid4()
 digits = string.digits
@@ -66,30 +63,21 @@ payload = {
 session.headers['client-id'] = 'NEXT'
 request = session.post('https://www.nordnet.dk/nnxapi/authentication/v2/sessions', json=payload)
 request = session.post('https://www.nordnet.dk/api/2/authentication/nnx-session/login', json={})
-
-# An "ntag" which is hidden in the inline javascript is needed for atleast the jwt refresh request
-request = session.get('https://www.nordnet.dk/oversigt')
-ntag_match = ntag_regex_pattern.search(request.text)
-ntag = ntag_match.group(1)
-
-print(f"Ntag: {ntag}")
-session.headers['ntag'] = ntag
+session.headers['ntag'] = request.headers['ntag']
 
 # Get accounts
 #accounts = session.get('https://www.nordnet.dk/api/2/accounts')
 #print(accounts.json())
 
+request = session.post('https://www.nordnet.dk/nnxapi/authorization/v1/tokens', json={})
+bearer_token = request.json()['jwt']
+session.headers['authorization'] = f'Bearer {bearer_token}'
+session.headers['x-locale'] = 'da-DK'
+
 # Get transactions
 #accids = (',').join([str(account['accid']) for account in accounts.json()])
 #fromdate = '2013-01-01'
 #todate = datetime.strftime(date.today(), '%Y-%m-%d')
-
-
-bearer_token_request = session.post('https://www.nordnet.dk/api/2/authentication/jwt/refresh', json={})
-bearer_token = bearer_token_request.json()['jwt']
-print(bearer_token)
-
-#session.headers['authorization'] = f'Bearer {bearer_token}'
 
 # Get JSON transactions
 # Limited to 800 results, the maximum may be larger
