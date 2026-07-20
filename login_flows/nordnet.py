@@ -1,5 +1,5 @@
 # Script for https://www.nordnet.dk/logind
-import requests, json, base64, sys, string, secrets, uuid
+import requests, json, base64, sys, string, secrets, uuid, getpass
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 sys.path.append("..")
@@ -72,8 +72,53 @@ def nordnet_login(user_id, password='', method="APP", proxy=None):
               f"    Content: {request.content}"
         raise Exception(msg)
 
-    parsed_url = urlparse(request.url)
-    code = parse_qs(parsed_url.query)['code'][0]
+    # Since the summer of 2026, Nordnet sometimes shows an extra page after the
+    # MitID approval, asking for your CPR number. The page is a small app that
+    # sends the number to its own "verify" address, so we do the same here.
+    if urlparse(request.url).path.endswith('/cpr'):
+        cpr_soup = BeautifulSoup(request.text, 'lxml')
+        cpr_page = cpr_soup.find(id='cpr-form')
+        cpr_base_url = cpr_page['data-base-url']
+        # The input is hidden and the number is only sent to the mitid.dk page,
+        # never saved anywhere.
+        cpr = getpass.getpass('Enter your CPR number (10 digits, input is hidden): ').replace('-', '').strip()
+        # Send the number the same way the page's own JavaScript does: as a
+        # single "cpr" form field to the verify address.
+        request = nordnet_session.post(cpr_base_url + cpr_page.get('data-verify-path', 'api/verify'), files={'cpr': (None, cpr)})
+        if request.status_code != 200:
+            msg = f"\n  Failed Nordnet CPR verify attempt:\n"\
+                  f"    Status code: {request.status_code}\n"\
+                  f"    Reason: {request.reason}\n"\
+                  f"    Content: {request.content}"
+            raise Exception(msg)
+        cpr_answer = request.json()
+        if not cpr_answer.get('success'):
+            # Careful here: the page only allows a few wrong attempts before it
+            # locks, so we show how many are left instead of retrying blindly.
+            raise Exception(f"Signicat did not accept the CPR number (remaining attempts: {cpr_answer.get('remainingAttempts')})")
+        # With the CPR number accepted we continue to the final address, which
+        # sends us onwards with the login code.
+        request = nordnet_session.get(cpr_base_url + cpr_page.get('data-finalize-cpr-path', 'finalizeCpr'))
+        if request.status_code != 200:
+            msg = f"\n  Failed Nordnet CPR finalize attempt:\n"\
+                  f"    Status code: {request.status_code}\n"\
+                  f"    Reason: {request.reason}\n"\
+                  f"    Content: {request.content}"
+            raise Exception(msg)
+
+    # The CPR step adds an extra mitid.dk stop on the way, and that stop has
+    # its own "code" value in the address. Nordnet only accepts the code that
+    # belongs to nordnet.dk, so we look through all the addresses we were sent
+    # through and prefer the one on nordnet.dk instead of just taking the first.
+    code = None
+    for visited_url in [earlier.url for earlier in request.history] + [request.url]:
+        found = parse_qs(urlparse(visited_url).query).get('code')
+        if found:
+            code = found[0]
+            if urlparse(visited_url).netloc == 'www.nordnet.dk':
+                break
+    if code is None:
+        raise Exception('No login code found after the finalize/CPR step - the login flow may have changed again.')
 
     payload = {
         "authenticationProvider": "SIGNICAT",
